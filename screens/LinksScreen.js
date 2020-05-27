@@ -1,74 +1,167 @@
-import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { RectButton, ScrollView } from 'react-native-gesture-handler';
+import React, { useState, useEffect, useRef } from 'react';
+import { Text, View, TouchableOpacity, Modal, Image } from 'react-native';
+ import { Camera } from 'expo-camera';
+ import * as Permissions from 'expo-permissions';
+ import * as ImagePicker from 'expo-image-picker';
+
+  //Expo Icon
+ import { FontAwesome, Ionicons,MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function LinksScreen() {
+   const [hasPermission, setHasPermission] = useState(null);
+   const [type, setType] = useState(Camera.Constants.Type.back);
+   const camRef = useRef(null);
+   const [capturedPhoto, setcapturedPhoto] = useState(null);
+   const [open, setOpen] = useState(false);
+   const [imageOpen, setImageOpen] = useState(false);
+   const [pickPhoto, setPickPhoto] = useState(null);
+
+   useEffect(() => {
+    (async () => {
+      getPermissionAsync()
+    })();
+  }, []);
+
+  async function getPermissionAsync(){
+    // Camera roll Permission 
+    if (Platform.OS === 'ios') {
+      const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+      if (status !== 'granted') {
+        alert('Sorry, we need camera roll permissions to make this work!');
+      }
+    }
+    // Camera Permission
+    const { status } = await Permissions.askAsync(Permissions.CAMERA);
+    setHasPermission(status === 'granted');
+  }
+
+   async function takePicture(){
+    console.log("aaaa")
+    if (camRef) {
+      console.log("aaaa")
+      let photo = await camRef.current.takePictureAsync();
+      setcapturedPhoto(photo.uri);
+      setOpen(true);
+      console.log(capturedPhoto)
+    }
+  }
+
+  async function pickImage(){
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    });
+    console.log(result.uri);
+    setPickPhoto(result.uri);
+    setImageOpen(true);
+  }
+
+  if (hasPermission === null) {
+    return <View />;		
+  }		   
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <OptionButton
-        icon="md-school"
-        label="Read the Expo documentation"
-        onPress={() => WebBrowser.openBrowserAsync('https://docs.expo.io')}
-      />
+    <View style={{ flex: 1 }}>
+      <Camera style={{ flex: 1 }} type={type} ref={camRef}>
+    
+      <View style={{		          
+        flex: 1,		       
+        backgroundColor: 'transparent',		         
+        flexDirection: 'row',	}}/>
 
-      <OptionButton
-        icon="md-compass"
-        label="Read the React Navigation documentation"
-        onPress={() => WebBrowser.openBrowserAsync('https://reactnavigation.org')}
-      />
+        <View style={{flex:1, flexDirection:"row",justifyContent:"space-between",margin:20}}>
+        <TouchableOpacity
+              style={{
+               alignSelf: 'flex-end',		               
+               alignItems: 'center',		               
+               backgroundColor: 'transparent',                
+             }}
+             onPress = {pickImage}>
+                <Ionicons
+                name="ios-photos"
+                style={{ color: "#fff", fontSize: 40}}
+                />		             
+             </TouchableOpacity>
 
-      <OptionButton
-        icon="ios-chatboxes"
-        label="Ask a question on the forums"
-        onPress={() => WebBrowser.openBrowserAsync('https://forums.expo.io')}
-        isLastOption
-      />
-    </ScrollView>
+             { pickPhoto && 
+             <Modal
+                animationType = "slide"
+                transparent = {false}
+                visible={imageOpen}
+              >
+                <View style={{flex:1, alignItems:"center",justifyContent:"center",margin:20}}>
+                   <TouchableOpacity style={{margin:10}} onPress = {() => {setImageOpen(false)}}>
+                     <FontAwesome
+                       name="windoe-close"
+                       style={{ color: "#ff0000", fontSize: 40}}
+                   />
+
+                    </TouchableOpacity>
+                   <Image style={{width:'100%', height: 500, borderRadius: 20}}
+                     source = {{uri: pickPhoto}}
+                   >
+                   </Image>
+                 </View>
+               </Modal>
+             }
+
+             <TouchableOpacity
+               style={{
+                 alignSelf: 'flex-end',
+                 alignItems: 'center',
+                 backgroundColor: 'transparent',
+               }}
+               onPress = {takePicture}>
+               <FontAwesome
+                   name="camera"
+                   style={{ color: "#fff", fontSize: 40}}
+
+                />
+             </TouchableOpacity>
+
+             { capturedPhoto && 
+               <Modal
+                 animationType = "slide"
+                 transparent = {false}
+                 visible={open}
+               >
+                 <View style={{flex:1, alignItems:"center",justifyContent:"center",margin:20}}>
+                   <TouchableOpacity style={{margin:10}} onPress = {() => setOpen(false)}>
+                     <FontAwesome
+                       name="windoe-close"
+                       style={{ color: "#ff0000", fontSize: 40}}
+                   />
+
+                    </TouchableOpacity>
+                   <Image style={{width:'100%', height: 500, borderRadius: 20}}
+                     source = {{uri: capturedPhoto}}
+                   >
+                   </Image>
+                 </View>
+               </Modal>
+             }
+
+             <TouchableOpacity
+               style={{
+                 alignSelf: 'flex-end',
+                 alignItems: 'center',
+                 backgroundColor: 'transparent',
+               }}>
+               <MaterialCommunityIcons
+                   name="camera-switch"
+                   style={{ color: "#fff", fontSize: 40}}
+                   onPress={() => {
+                     console.log("Flip camera")
+                     setType(
+                       type === Camera.Constants.Type.back
+                         ? Camera.Constants.Type.front
+                         : Camera.Constants.Type.back
+                     );
+                   }}
+               />
+             </TouchableOpacity>
+
+             </View>
+             </Camera>
+       </View>
   );
 }
-
-function OptionButton({ icon, label, onPress, isLastOption }) {
-  return (
-    <RectButton style={[styles.option, isLastOption && styles.lastOption]} onPress={onPress}>
-      <View style={{ flexDirection: 'row' }}>
-        <View style={styles.optionIconContainer}>
-          <Ionicons name={icon} size={22} color="rgba(0,0,0,0.35)" />
-        </View>
-        <View style={styles.optionTextContainer}>
-          <Text style={styles.optionText}>{label}</Text>
-        </View>
-      </View>
-    </RectButton>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fafafa',
-  },
-  contentContainer: {
-    paddingTop: 15,
-  },
-  optionIconContainer: {
-    marginRight: 12,
-  },
-  option: {
-    backgroundColor: '#fdfdfd',
-    paddingHorizontal: 15,
-    paddingVertical: 15,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: 0,
-    borderColor: '#ededed',
-  },
-  lastOption: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  optionText: {
-    fontSize: 15,
-    alignSelf: 'flex-start',
-    marginTop: 1,
-  },
-});
